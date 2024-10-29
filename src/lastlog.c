@@ -61,6 +61,7 @@ static bool tflg = false;	/* print is restricted to most recent days */
 static bool bflg = false;	/* print excludes most recent days */
 static bool Cflg = false;	/* clear record for user */
 static bool Sflg = false;	/* set record for user */
+static bool aflg = false;   /* print only users that have logged in */
 
 #define	NOW	time(NULL)
 
@@ -81,6 +82,7 @@ usage (int status)
 	(void) fputs (_("  -S, --set                     set lastlog record to current time (usable only with -u)\n"), usageout);
 	(void) fputs (_("  -t, --time DAYS               print only lastlog records more recent than DAYS\n"), usageout);
 	(void) fputs (_("  -u, --user LOGIN              print lastlog record of the specified LOGIN\n"), usageout);
+	(void) fputs (_("  -a, --active                  print lastlog excluding '**Never logged in**' users"), usageout);
 	(void) fputs ("\n", usageout);
 	exit (status);
 }
@@ -169,11 +171,28 @@ static void print_one (/*@null@*/const struct passwd *pw)
 	}
 
 #ifdef HAVE_LL_HOST
-	printf ("%-16s %-8.8s %*s%s\n",
-	        pw->pw_name, ll.ll_line, -maxIPv6Addrlen, ll.ll_host, cp);
+	if (aflag) {
+	    // Print if 'cp' does not contain the substring "Never logged in"
+	    if (strstr(cp, "Never logged in") == NULL) {
+			printf ("%-16s %-8.8s %*s%s\n",
+			        pw->pw_name, ll.ll_line, -maxIPv6Addrlen, ll.ll_host, cp);
+		}
+	} else {
+		printf ("%-16s %-8.8s %*s%s\n",
+		        pw->pw_name, ll.ll_line, -maxIPv6Addrlen, ll.ll_host, cp);
+	}
+
 #else
-	printf ("%-16s\t%-8.8s %s\n",
-	        pw->pw_name, ll.ll_line, cp);
+	if (aflag) {
+	    // Print if 'cp' does not contain the substring "Never logged in"
+	    if (strstr(cp, "Never logged in") == NULL) {
+	    	printf ("%-16s\t%-8.8s %s\n",
+		        	pw->pw_name, ll.ll_line, cp);
+	    }
+	} else 	{
+		printf ("%-16s\t%-8.8s %s\n",
+		        pw->pw_name, ll.ll_line, cp);
+	}
 #endif
 }
 
@@ -319,10 +338,11 @@ int main (int argc, char **argv)
 			{"set",    no_argument,       NULL, 'S'},
 			{"time",   required_argument, NULL, 't'},
 			{"user",   required_argument, NULL, 'u'},
+			{"active", no_argument,       NULL, 'a'},
 			{NULL, 0, NULL, '\0'}
 		};
 
-		while ((c = getopt_long (argc, argv, "b:ChR:St:u:", longopts,
+		while ((c = getopt_long (argc, argv, "b:ChR:St:u:a", longopts,
 		                         NULL)) != -1) {
 			switch (c) {
 			case 'b':
@@ -394,6 +414,11 @@ int main (int argc, char **argv)
 						exit (EXIT_FAILURE);
 					}
 				}
+				break;
+			}
+			case 'a':
+			{
+				aflg = true;
 				break;
 			}
 			default:
